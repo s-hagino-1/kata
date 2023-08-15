@@ -1,0 +1,7 @@
+version: '3.7'
+
+services:
+  kata:
+    build: ./
+    volumes:
+      - ../ex01-business-rules/php:/src
