@@ -5,4 +5,4 @@ down:
 exec:
 	docker exec -it docker-kata-1 /bin/sh
 test:
-	docker exec docker-kata-1 /
+	docker exec docker-kata-1 /src/vendor/bin/phpunit /src/tests
