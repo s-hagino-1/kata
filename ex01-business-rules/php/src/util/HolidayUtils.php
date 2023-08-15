@@ -11,9 +11,9 @@ class HolidayUtils
     private const SUMMARY_PTN = "/^SUMMARY:(.+)$/";
     private const HOLIDAYS_OF_WEEK = [5, 6]; // DayOfWeek::SATURDAY, DayOfWeek::SUNDAY
 
-    private static array $holidays = [];
+    private array $holidays = [];
 
-    private static function isCacheAvailable(string $cacheFile): bool
+    private function isCacheAvailable(string $cacheFile): bool
     {
         $now = new DateTime("now");
         $cacheLastModified = file_exists($cacheFile) ? filemtime($cacheFile) : 0;
@@ -24,9 +24,9 @@ class HolidayUtils
             ->format('Y') == $now->format('Y');
     }
 
-    private static function createOutputStream(string $file)
+    private function createOutputStream(string $file)
     {
-        if (self::isCacheAvailable($file)) {
+        if ($this->isCacheAvailable($file)) {
             return fopen($file, "w"); // Dummy writable stream
         } else {
             if (!file_exists(dirname($file))) {
@@ -36,7 +36,7 @@ class HolidayUtils
         }
     }
 
-    public static function initializeHolidays()
+    public function __construct()
     {
         try {
             $cacheFile = "target/basic.ics";
@@ -45,7 +45,7 @@ class HolidayUtils
                 : "https://calendar.google.com/calendar/ical/ja.japanese%23holiday%40group.v.calendar.google.com/public/basic.ics";
 
             $in = fopen($url, "r");
-            $out = self::createOutputStream($cacheFile);
+            $out = $this->createOutputStream($cacheFile);
 
             $name = null;
             $date = null;
@@ -61,7 +61,7 @@ class HolidayUtils
                     $name = $summaryMatches[1];
                 } elseif ($line === "END:VEVENT\n") {
                     if ($date && $name) {
-                        self::$holidays[$date->format($ptn)] = $name;
+                        $this->holidays[$date->format($ptn)] = $name;
                     }
                 }
                 fwrite($out, $line);
@@ -74,22 +74,22 @@ class HolidayUtils
         }
     }
 
-    public static function isHoliday($date): bool
+    public function isHoliday($date): bool
     {
         if ($date instanceof DateTime) {
             $dayOfWeek = intval($date->format("N"));
             $formattedDate = $date->format("Ymd");
-            return in_array($dayOfWeek, self::HOLIDAYS_OF_WEEK) || array_key_exists($formattedDate, self::$holidays);
+            return in_array($dayOfWeek, self::HOLIDAYS_OF_WEEK) || array_key_exists($formattedDate, $this->holidays);
         }
         return false;
     }
 
-    public static function printHolidays()
+    public function printHolidays()
     {
-        uksort(self::$holidays, function ($a, $b) {
+        uksort($this->holidays, function ($a, $b) {
             return strcmp($a, $b);
         });
-        foreach (self::$holidays as $date => $name) {
+        foreach ($this->holidays as $date => $name) {
             echo $date . ": " . $name . "\n";
         }
     }
