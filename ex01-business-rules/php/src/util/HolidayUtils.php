@@ -7,8 +7,6 @@ use DateTimeZone;
 
 class HolidayUtils
 {
-    private const DTSTART_PTN = "/^DTSTART;VALUE=DATE:(\\d{8})$/";
-    private const SUMMARY_PTN = "/^SUMMARY:(.+)$/";
     private const HOLIDAYS_OF_WEEK = [5, 6]; // DayOfWeek::SATURDAY, DayOfWeek::SUNDAY
 
     private array $holidays = [];
@@ -27,7 +25,7 @@ class HolidayUtils
     private function createOutputStream(string $file)
     {
         if ($this->isCacheAvailable($file)) {
-            return fopen($file, "w"); // Dummy writable stream
+            return null;
         } else {
             if (!file_exists(dirname($file))) {
                 mkdir(dirname($file), 0777, true);
@@ -51,37 +49,39 @@ class HolidayUtils
             $date = null;
 
             $ptn = "Ymd";
+
             while (($line = fgets($in)) !== false) {
-                if ($line === "BEGIN:VEVENT\n") {
+                if (preg_match("/^BEGIN:VEVENT/", $line)) {
                     $name = null;
                     $date = null;
-                } elseif (preg_match(self::DTSTART_PTN, $line, $dtstartMatches)) {
+                } elseif (preg_match("/^DTSTART;VALUE=DATE:(\d+)/", $line, $dtstartMatches)) {
                     $date = DateTime::createFromFormat($ptn, $dtstartMatches[1]);
-                } elseif (preg_match(self::SUMMARY_PTN, $line, $summaryMatches)) {
+                } elseif (preg_match("/^SUMMARY:(.+)\\n$/", $line, $summaryMatches)) {
                     $name = $summaryMatches[1];
-                } elseif ($line === "END:VEVENT\n") {
+                } elseif (preg_match("/^END:VEVENT/", $line)) {
                     if ($date && $name) {
                         $this->holidays[$date->format($ptn)] = $name;
                     }
                 }
-                fwrite($out, $line);
+                if ($out !== null) {
+                    fwrite($out, $line);
+                }
             }
 
             fclose($in);
-            fclose($out);
+            if ($out !== null) {
+                fclose($out);
+            }
         } catch (\Throwable $e) {
             throw new \RuntimeException($e);
         }
     }
 
-    public function isHoliday($date): bool
+    public function isHoliday(DateTime $date): bool
     {
-        if ($date instanceof DateTime) {
-            $dayOfWeek = intval($date->format("N"));
-            $formattedDate = $date->format("Ymd");
-            return in_array($dayOfWeek, self::HOLIDAYS_OF_WEEK) || array_key_exists($formattedDate, $this->holidays);
-        }
-        return false;
+        $dayOfWeek = intval($date->format("N"));
+        $formattedDate = $date->format("Ymd");
+        return in_array($dayOfWeek, self::HOLIDAYS_OF_WEEK) || array_key_exists($formattedDate, $this->holidays);
     }
 
     public function printHolidays()
